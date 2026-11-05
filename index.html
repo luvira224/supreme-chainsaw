@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Color ratio tracker</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;700&display=swap">
+<style>
+:root{--bg:#F3F4F1;--surface:#fff;--ink:#1C1E21;--muted:#646A71;--line:#D6D9DD;--soft:#E9EBED;--warn:#B3261E;color-scheme:light;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#141517;--surface:#1D1F22;--ink:#ECEDEF;--muted:#9AA0A7;--line:#383B40;--soft:#2A2D31;--warn:#FF8A80;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#141517;--surface:#1D1F22;--ink:#ECEDEF;--muted:#9AA0A7;--line:#383B40;--soft:#2A2D31;--warn:#FF8A80;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow-wrap:anywhere}
+h1,h2,.big{font-family:"Bricolage Grotesque",system-ui,sans-serif}
+.wrap{max-width:1040px;margin:0 auto;padding:22px 18px 48px}
+h1{font-size:clamp(26px,5vw,36px);line-height:1.1;margin:0 0 6px;font-weight:700;letter-spacing:-.02em}
+.lede{margin:0 0 22px;color:var(--muted);max-width:60ch}
+h2{font-size:17px;margin:0 0 12px;font-weight:700}
+.cols{display:grid;grid-template-columns:minmax(0,5fr) minmax(0,6fr);gap:18px;align-items:start}
+.col{display:flex;flex-direction:column;gap:18px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:4px}
+input,select,button{font:inherit;color:inherit}
+input[type=text],input[type=number],select{width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg)}
+input[type=color]{width:46px;height:38px;padding:2px;border:1px solid var(--line);border-radius:7px;background:var(--bg);cursor:pointer}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.row{display:flex;gap:10px;margin-bottom:10px}
+.row>div{flex:1;min-width:0}
+.row>div.fit{flex:none}
+.btn{background:var(--ink);color:var(--bg);border:0;border-radius:7px;padding:9px 14px;font-weight:600;cursor:pointer}
+.ghost{background:none;border:1px solid var(--line);color:var(--ink);font-weight:500;padding:6px 10px;border-radius:7px;cursor:pointer;font-size:13px}
+.ghost:hover{background:var(--soft)}
+.head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}
+.rr{display:grid;grid-template-columns:70px minmax(0,1fr) 60px;gap:10px;align-items:end;margin-bottom:10px}
+.rr label{margin:0 0 4px}
+.pre{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;align-items:center}
+.sum{font-size:13px;color:var(--muted)}
+.sum.bad{color:var(--warn);font-weight:600}
+.sw{flex:none;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);box-shadow:inset 0 0 0 1px rgba(128,128,128,.25)}
+ul{list-style:none;margin:0;padding:0}
+li{display:flex;gap:10px;align-items:center;padding:9px 0;border-top:1px solid var(--line)}
+li:first-child{border-top:0}
+li .gi{flex:1;min-width:0}
+li b{display:block;font-weight:600;overflow-wrap:anywhere}
+li small,.sub{color:var(--muted);font-size:13px}
+li small{display:block}
+li>.sub,.legend li>span{flex:none;white-space:nowrap}
+.inv .seg{flex:none}
+.ld{padding:4px 8px;font-size:12px;flex:none;white-space:nowrap}
+.qty button:disabled,.ld:disabled{opacity:.4;cursor:not-allowed}
+.qty{display:flex;align-items:center;gap:6px;flex:none}
+.qty button,.x{flex:none;width:28px;height:28px;border:1px solid var(--line);background:none;border-radius:6px;cursor:pointer;line-height:1}
+.qty button:hover,.x:hover{background:var(--soft)}
+.qty span{min-width:24px;text-align:center;font-variant-numeric:tabular-nums}
+.empty{color:var(--muted);display:block;text-align:center;padding:14px 0}
+.chartbox{display:flex;gap:18px;align-items:center;flex-wrap:wrap}
+svg{width:240px;max-width:100%;height:auto;flex:none;margin:0 auto}
+.sl{stroke:var(--line);stroke-width:1}
+.big{font-size:34px;font-weight:700;fill:var(--ink)}
+.sm{font-size:11px;fill:var(--muted)}
+.legend{flex:1;min-width:180px}
+.legend li{padding:6px 0}
+.note{font-size:13px;color:var(--muted);margin:10px 0 0}
+.note:empty{display:none}
+.head-line{font-size:18px;line-height:1.35;margin:0 0 6px}
+.add{flex:none;font-family:"Bricolage Grotesque",system-ui,sans-serif;font-size:28px;font-weight:700;min-width:54px;text-align:right}
+.add.zero{color:var(--muted);font-weight:500}
+.err{color:var(--warn)}
+.seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{border:0;background:none;padding:5px 10px;font-size:13px;cursor:pointer}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg);font-weight:600}
+input:disabled{opacity:.6;cursor:not-allowed}
+.saved{margin-bottom:12px}
+.inv{display:flex;gap:8px;margin-bottom:8px;align-items:center}
+.inv input{flex:1;min-width:0}
+.gh{padding-top:14px;border-top:1px solid var(--line)}
+.gh+li{border-top:0}
+li.in{padding-left:30px}
+#saved{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:flex;align-items:center;gap:6px;padding:4px 11px 4px 5px;border:1px solid var(--line);border-radius:16px;background:none;cursor:pointer;font-size:13px;text-align:left;max-width:100%}
+.chip .sw{width:18px;height:18px}
+.chip:hover{background:var(--soft)}
+.chip[aria-pressed=true]{border-color:var(--ink);box-shadow:inset 0 0 0 1px var(--ink)}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.top h1{margin:0}
+.top .seg{flex:none}
+.ctl{display:contents}
+[data-view=phone] body{font-size:16px;line-height:1.55}
+[data-view=phone] .wrap{padding:14px 12px 44px}
+[data-view=phone] .top{flex-direction:column;align-items:stretch;gap:12px;margin-bottom:10px}
+[data-view=phone] h1{font-size:28px}
+[data-view=phone] .lede{font-size:15px;line-height:1.55;margin-bottom:18px}
+[data-view=phone] h2{font-size:18px;margin-bottom:14px}
+[data-view=phone] .cols{display:flex;flex-direction:column;gap:16px}
+[data-view=phone] .col{display:contents}
+[data-view=phone] #p-entry{order:1}[data-view=phone] #p-ratio{order:2}[data-view=phone] #p-chart{order:3}[data-view=phone] #p-sugg{order:4}[data-view=phone] #p-load{order:5}[data-view=phone] #p-list{order:6}
+[data-view=phone] .panel{padding:18px 14px;border-radius:12px}
+[data-view=phone] .head{gap:12px;align-items:center}
+[data-view=phone] .head .seg,[data-view=phone] .top .seg,[data-view=phone] .inv .seg{flex:1 1 100%}
+[data-view=phone] .seg button{flex:1;min-height:40px;padding:8px 10px;font-size:14px}
+[data-view=phone] label{font-size:14px;margin-bottom:6px}
+[data-view=phone] input[type=text],[data-view=phone] input[type=number],[data-view=phone] select{font-size:16px;min-height:46px;padding:10px 12px}
+[data-view=phone] input[type=color]{width:56px;height:46px}
+[data-view=phone] .btn{min-height:46px;padding:10px 22px;font-size:16px}
+[data-view=phone] .ghost{min-height:40px;padding:8px 12px;font-size:14px}
+[data-view=phone] .row{flex-wrap:wrap;align-items:flex-end;gap:12px;margin-bottom:14px}
+[data-view=phone] .row>div{flex:1 1 100%}
+[data-view=phone] .row>div.fit{flex:none}
+[data-view=phone] .row>div[style]{flex:1 1 120px;max-width:none!important}
+[data-view=phone] .rr{grid-template-columns:92px minmax(0,1fr);gap:12px}
+[data-view=phone] .rr>div:last-child{display:none}
+[data-view=phone] .sum,[data-view=phone] .note,[data-view=phone] .sub,[data-view=phone] li small{font-size:14px;line-height:1.5}
+[data-view=phone] .saved{margin-bottom:16px}
+[data-view=phone] #saved{gap:8px}
+[data-view=phone] .chip{font-size:14px;padding:6px 12px 6px 6px;min-height:38px}
+[data-view=phone] .chartbox{flex-direction:column;align-items:stretch;gap:12px}
+[data-view=phone] svg{width:min(290px,100%)}
+[data-view=phone] .legend{min-width:0;width:100%}
+[data-view=phone] li{padding:12px 0;gap:12px}
+[data-view=phone] li b{font-size:16px;line-height:1.4}
+[data-view=phone] .legend li{padding:10px 0}
+[data-view=phone] .add{font-size:26px;min-width:48px}
+[data-view=phone] .head-line{font-size:19px}
+[data-view=phone] .inv{flex-wrap:wrap;gap:10px;margin-bottom:12px}
+[data-view=phone] .inv input{flex:1 1 100%}
+[data-view=phone] #list li:not(.gh),[data-view=phone] #lload li{flex-wrap:wrap;row-gap:10px}
+[data-view=phone] #list li:not(.gh) .gi,[data-view=phone] #lload li .gi{flex:1 1 calc(100% - 44px)}
+[data-view=phone] li.in{padding-left:10px}
+[data-view=phone] .ctl{display:flex;flex:1 1 100%;align-items:center;gap:8px;flex-wrap:wrap}
+[data-view=phone] .ctl .ld+.x,[data-view=phone] .ctl .qty+.x{margin-left:auto}
+[data-view=phone] .qty button,[data-view=phone] .x{width:36px;height:36px;font-size:18px}
+[data-view=phone] .qty span{min-width:26px;font-size:16px}
+[data-view=phone] .ld{min-height:36px;padding:6px 10px;font-size:13px}
+[data-view=phone] .pre{gap:10px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.tabs .ghost{border-radius:16px;padding:4px 12px}
+.tab .cnt{color:var(--muted);margin-left:2px;font-variant-numeric:tabular-nums}
+.ied{margin:0 0 12px;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.ied .row{margin-bottom:10px}
+.itag{display:inline-flex;align-items:center;gap:4px;margin:0 2px}
+.itag i{display:inline-block;width:9px;height:9px;border-radius:50%;border:1px solid var(--line)}
+[data-view=phone] .tabs{gap:8px;margin-bottom:12px}
+[data-view=phone] .tabs .ghost{min-height:38px;padding:6px 14px}
+[data-view=phone] .ied{padding:14px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+<script>
+(function(){
+  var K="colorRatioTracker.view",de=document.documentElement,pref="auto";
+  try{var s=localStorage.getItem(K);if(s==="phone"||s==="desktop")pref=s}catch(e){}
+  function detect(){
+    var narrow=window.matchMedia("(max-width:820px)").matches;
+    var touch=window.matchMedia("(pointer:coarse)").matches&&Math.min(screen.width,screen.height)<700;
+    return narrow||touch?"phone":"desktop";
+  }
+  function apply(){
+    var v=pref==="auto"?detect():pref;
+    de.setAttribute("data-view",v);
+    document.querySelectorAll("[data-lv]").forEach(function(b){
+      b.setAttribute("aria-pressed",String(b.getAttribute("data-lv")===pref));
+      if(b.getAttribute("data-lv")==="auto")b.textContent="Auto ("+detect()+")";
+    });
+  }
+  window.setView=function(p){
+    pref=p;
+    try{if(p==="auto")localStorage.removeItem(K);else localStorage.setItem(K,p)}catch(e){}
+    apply();
+  };
+  window.addEventListener("resize",apply);
+  document.addEventListener("DOMContentLoaded",apply);
+  apply();
+})();
+</script>
+</head>
+<body>
+<div class="wrap">
+<div class="top"><h1>Color ratio tracker</h1><div class="seg" role="group" aria-label="Layout"><button type="button" data-lv="auto">Auto</button><button type="button" data-lv="phone">Phone</button><button type="button" data-lv="desktop">Desktop</button></div></div>
+<p class="lede">Log everything you own in your inventory, pull items into a loadout, and the tracker shows how many more of each color that loadout needs to hold your ratio.</p>
+<div class="cols">
+<div class="col">
+<section class="panel" id="p-entry">
+<div class="head"><h2 id="fh">Add item</h2><button class="ghost" id="ex" type="button">Load example</button></div>
+<div class="row"><div><label for="iname">Item name (optional)</label><input type="text" id="iname" placeholder="Linen shirt" autocomplete="off"></div></div>
+<div class="row"><div><label for="iinv">Add to inventory</label><select id="iinv"></select></div></div>
+<div class="row">
+<div><label for="cname">Color name</label><input type="text" id="cname" list="dl" placeholder="Black" autocomplete="off"></div>
+<div class="fit"><label for="chex">Shade</label><input type="color" id="chex" value="#222222"></div>
+<div style="max-width:84px"><label for="iqty">Quantity</label><input type="number" id="iqty" min="1" value="1"></div>
+</div>
+<datalist id="dl"></datalist>
+<div class="saved" id="savedwrap" hidden><label>Pick a color you already logged</label><div id="saved"></div></div>
+<button class="btn" id="add" type="button">Add item</button> <button class="ghost" id="cancel" type="button" hidden>Cancel</button>
+</section>
+<section class="panel" id="p-ratio">
+<div class="head"><h2>Target ratio</h2><div class="seg" role="group" aria-label="Ratio mode"><button type="button" data-m="fixed">Fixed 60:30:10</button><button type="button" data-m="free">Freeform</button></div></div>
+
+<div id="ratio"></div>
+<div class="pre"><span class="sum" id="sum"></span><span style="flex:1"></span>
+
+
+</div>
+</section>
+<section class="panel" id="p-load">
+<div class="head"><h2>Loadout</h2><button class="ghost" id="lclr" type="button" title="Take everything out of the loadout. Items stay in your inventories." hidden>Return all</button></div>
+<p class="sub" style="margin:0 0 8px">The chart, the ratio and the suggestions are all based on this list. You can pull items in from any of your inventories.</p>
+<p class="note" id="lsum" style="margin:0 0 8px"></p>
+<ul id="lload"></ul>
+</section>
+<section class="panel" id="p-list">
+<div class="head"><h2>Inventory</h2><button class="ghost" id="clr" type="button">Clear all</button></div>
+<div class="tabs" id="invtabs" role="group" aria-label="Choose an inventory"></div>
+<div class="ied" id="invedit" hidden>
+<div class="row"><div><label for="ivn">Inventory name</label><input type="text" id="ivn" maxlength="40" placeholder="Main wardrobe" autocomplete="off"></div><div class="fit"><label for="ivc">Color</label><input type="color" id="ivc" value="#4c6ef5"></div></div>
+<div class="pre"><button class="btn" id="ivs" type="button">Add inventory</button><button class="ghost" id="ivx" type="button">Cancel</button><button class="ghost" id="ivd" type="button" hidden>Delete, keep items</button><button class="ghost" id="ivda" type="button" hidden>Delete</button></div>
+</div>
+<div class="inv"><input type="text" id="q" placeholder="Search items or colors" aria-label="Search inventory" autocomplete="off"><div class="seg" role="group" aria-label="Inventory view"><button type="button" data-v="list">List</button><button type="button" data-v="color">By color</button></div></div>
+<p class="note" id="inv" style="margin:0 0 8px"></p>
+<div class="pre" style="margin:0 0 8px"><button class="ghost" id="exp" type="button">Export JSON</button><button class="ghost" id="imp" type="button">Import JSON</button><input type="file" id="file" accept=".json,application/json" hidden></div>
+<p class="note" id="auto" style="margin:0 0 4px"></p>
+<p class="note" id="msg" role="status" style="margin:0 0 6px"></p>
+<ul id="list"></ul>
+</section>
+</div>
+<div class="col">
+<section class="panel" id="p-chart">
+<h2>Loadout mix vs. target</h2>
+<div class="chartbox">
+<svg id="pie" viewBox="0 0 240 240" role="img" aria-label="Donut chart: outer ring shows current colors, inner ring shows target ratio"></svg>
+<ul class="legend" id="legend"></ul>
+</div>
+<p class="note" id="cn"></p>
+</section>
+<section class="panel" id="p-sugg">
+<h2>What to add</h2>
+<div id="sugg"></div>
+</section>
+</div>
+</div>
+</div>
+<script>
+const KEY="colorRatioTracker.v1";
+const ROLES=[{id:"dom",label:"Dominant"},{id:"sec",label:"Secondary"},{id:"acc",label:"Accent"}];
+let S={items:[],invs:[],load:[],src:"load",mode:"fixed",roles:{dom:null,sec:null,acc:null},pct:{dom:60,sec:30,acc:10}};
+try{const r=localStorage.getItem(KEY);if(r){const o=JSON.parse(r);if(o&&Array.isArray(o.items)){S={items:o.items,invs:Array.isArray(o.invs)?o.invs:[],load:Array.isArray(o.load)?o.load:[],src:"load",mode:o.mode==="free"?"free":"fixed",roles:Object.assign(S.roles,o.roles),pct:Object.assign(S.pct,o.pct)}}}}catch(e){}
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));return true}catch(e){return false}};
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+/* static ratio rows (built once so typing keeps focus) */
+$("ratio").innerHTML=ROLES.map(r=>`<div class="rr"><div><label for="p-${r.id}">${r.label} %</label><input type="number" id="p-${r.id}" min="0" max="100" step="1" value="${S.pct[r.id]}"></div><div><label for="sel-${r.id}">Color</label><select id="sel-${r.id}"></select></div><div></div></div>`).join("");
+
+const FIXED={dom:60,sec:30,acc:10};
+const P=id=>FIXED[id];
+let view="list",query="",editing=null,invSel="all",invEdit=null,wantInv=null,dArm=false;
+const PAL=["#4C6EF5","#12B886","#F59F00","#E64980","#7950F2","#FD7E14"];
+function syncView(){document.querySelectorAll("[data-v]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===view)))}
+function visible(g){
+  const q=query.trim().toLowerCase();
+  const m=S.items.filter(i=>(invSel==="all"||i.inv===invSel)&&(!q||(i.name+" "+i.color).toLowerCase().includes(q)));
+  if(view!=="color")return m.slice().reverse();
+  const T=g.reduce((a,x)=>a+x.qty,0)||1,out=[];
+  g.forEach(x=>{const its=m.filter(i=>i.key===x.key);if(its.length)out.push({hdr:1,color:x.label,hex:x.hex,qty:x.qty,pct:Math.round(x.qty/T*100)},...its.slice().reverse())});
+  return out;
+}
+function startEdit(it){
+  editing=it.id;
+  $("iname").value=it.name;$("cname").value=it.color;$("chex").value=it.hex.toLowerCase();$("iqty").value=it.qty;
+  $("iinv").value=it.inv;$("fh").textContent="Edit item";$("add").textContent="Save changes";$("cancel").hidden=false;
+  markSaved();$("p-entry").scrollIntoView({block:"nearest"});$("iname").focus();
+}
+function endEdit(){
+  editing=null;$("fh").textContent="Add item";$("add").textContent="Add item";$("cancel").hidden=true;
+  $("iname").value="";$("iqty").value=1;
+}
+const BM=[10,30,60];
+function LQ(id){const l=S.load.find(x=>x.id===id);return l?l.qty:0}
+function loadAdd(id,n){const it=S.items.find(x=>x.id===id);if(!it)return;const l=S.load.find(x=>x.id===id);if(l)l.qty=Math.min(it.qty,l.qty+n);else S.load.push({id,qty:Math.min(it.qty,n)})}
+function cleanLoad(){S.load=S.load.filter(l=>{const it=S.items.find(i=>i.id===l.id);if(!it)return false;l.qty=Math.min(l.qty,it.qty);return l.qty>=1})}
+function srcItems(){return S.load.map(l=>{const it=S.items.find(i=>i.id===l.id);return it&&{...it,qty:l.qty}}).filter(Boolean)}
+const near=s=>BM.reduce((a,b)=>Math.abs(b-s)<Math.abs(a-s)?b:a);
+function freeHtml(g){
+  const T=g.reduce((a,x)=>a+x.qty,0);
+  if(!T)return'<p class="sub">Pull items into your loadout and each color will get a suggestion toward the nearest of 10%, 30% or 60% of your loadout.</p>';
+  const up=(q,p)=>Math.max(0,Math.ceil((p*T-q)/(1-p)-1e-9));
+  const down=(q,p)=>Math.max(0,Math.ceil(q/p-T-1e-9));
+  const iq=new Map(groups().map(x=>[x.key,x.qty]));
+  const rows=g.map(x=>{
+    const s=x.qty/T*100,n=near(s),p=n/100,u=up(x.qty,p),d=down(x.qty,p),nx=BM.find(b=>b>n);
+    let big,line;
+    if(!u&&!d){big='<div class="add zero">✓</div>';line="Right on "+n+"%."}
+    else if(u){big='<div class="add">+'+u+"</div>";line=u+" more to reach "+n+"% of your total."}
+    else{big='<div class="add zero">0</div>';line="Above "+n+"%. Add "+d+" of other colors to bring it down to "+n+"%"+(nx?", or "+up(x.qty,nx/100)+" more of this one to reach "+nx+"%.":".")}
+    return`<li><span class="sw" style="background:${x.hex}"></span><div class="gi"><b>${esc(x.label)}</b><small>${x.qty} of ${T} items, ${Math.round(s)}% now (nearest ${n}%)</small><small>${line}</small>${S.src==="load"&&u&&(iq.get(x.key)||0)>x.qty?`<small>${Math.min(u,(iq.get(x.key)||0)-x.qty)} could come from your inventory.</small>`:""}</div>${big}</li>`;
+  }).join("");
+  return'<p class="sub">No fixed ratio. Each color is compared with the nearest of 10%, 30% and 60%. Adding items changes your total, so the counts already account for that.</p><ul>'+rows+"</ul>";
+}
+function syncInputs(){
+  const f=S.mode==="fixed";
+  ROLES.forEach(r=>{const i=$("p-"+r.id);i.value=P(r.id);i.disabled=true});
+  $("ratio").hidden=!f;
+  $("cn").textContent=f?"Outer ring is what you have. Inner ring is the target ratio.":"Each slice is a color. Hover a slice for its count.";
+  
+  document.querySelectorAll("[data-m]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.m===S.mode)));
+}
+function groups(src){
+  const m=new Map();
+  for(const it of (src||S.items)){
+    if(!m.has(it.key))m.set(it.key,{key:it.key,label:it.color,hex:it.hex,qty:0});
+    m.get(it.key).qty+=it.qty;
+  }
+  return [...m.values()].sort((a,b)=>b.qty-a.qty);
+}
+function ensureRoles(g){
+  const keys=new Set(g.map(x=>x.key));
+  for(const r of ROLES)if(!keys.has(S.roles[r.id]))S.roles[r.id]=null;
+  const used=new Set(Object.values(S.roles));
+  for(const r of ROLES)if(!S.roles[r.id]){
+    const c=g.find(x=>!used.has(x.key));
+    if(c){S.roles[r.id]=c.key;used.add(c.key)}
+  }
+}
+/* Smallest whole-number total N (>= what you own in the ratio colors) where every share is a whole count */
+function calc(g){
+  const sum=ROLES.reduce((a,r)=>a+P(r.id),0);
+  if(sum<=0)return{err:"Set at least one share above 0."};
+  const rows=ROLES.map(r=>{const gr=g.find(x=>x.key===S.roles[r.id]);return{...r,p:P(r.id),g:gr,have:gr?gr.qty:0}});
+  const act=rows.filter(r=>r.p>0);
+  const sumHave=act.reduce((a,r)=>a+r.have,0);
+  if(!sumHave)return{empty:true};
+  const need=Math.max(...act.map(r=>r.have*sum/r.p));
+  let N=Math.max(Math.ceil(need-1e-9),1);
+  while(!act.every(r=>(N*r.p)%sum===0))N++;
+  rows.forEach(r=>{r.target=N*r.p/sum;r.add=Math.max(r.target-r.have,0)});
+  const lead=act.reduce((a,b)=>b.have/b.p>a.have/a.p?b:a);
+  return{rows,N,lead,sumHave,sum};
+}
+function slice(r1,r0,a0,a1){
+  if(a1-a0>2*Math.PI-1e-4)a1=a0+2*Math.PI-1e-4;
+  const f=(a,r)=>[(120+r*Math.cos(a)).toFixed(2),(120+r*Math.sin(a)).toFixed(2)];
+  const L=a1-a0>Math.PI?1:0,[x0,y0]=f(a0,r1),[x1,y1]=f(a1,r1),[x2,y2]=f(a1,r0),[x3,y3]=f(a0,r0);
+  return`M${x0} ${y0}A${r1} ${r1} 0 ${L} 1 ${x1} ${y1}L${x2} ${y2}A${r0} ${r0} 0 ${L} 0 ${x3} ${y3}Z`;
+}
+function ring(data,r1,r0){
+  const total=data.reduce((a,d)=>a+d.v,0);
+  if(!total)return`<path class="sl" style="fill:var(--soft)" d="${slice(r1,r0,-Math.PI/2,1.5*Math.PI)}"/>`;
+  let a=-Math.PI/2;
+  return data.filter(d=>d.v>0).map(d=>{const b=a+d.v/total*2*Math.PI;const p=`<path class="sl" style="fill:${d.hex}" d="${slice(r1,r0,a,b)}"><title>${esc(d.t)}</title></path>`;a=b;return p}).join("");
+}
+function render(){
+  fixInvs();cleanLoad();
+  document.querySelectorAll("[data-s]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.s===S.src)));
+  if(editing&&!S.items.some(i=>i.id===editing))endEdit();
+  const sel=S.items.filter(i=>invSel==="all"||i.inv===invSel),ga=groups(),gi=groups(sel),g=groups(srcItems());ensureRoles(g);const ok=save();
+  $("auto").textContent=ok?"Saved in this browser automatically.":"This browser blocked auto-save. Use Export JSON to keep your data.";
+  const c=calc(g);
+  $("dl").innerHTML=ga.map(x=>`<option value="${esc(x.label)}">`).join("");
+  $("savedwrap").hidden=!ga.length;
+  $("saved").innerHTML=ga.map(x=>`<button type="button" class="chip" data-k="${esc(x.key)}"><span class="sw" style="background:${x.hex}"></span>${esc(x.label)}</button>`).join("");
+  markSaved();
+  ROLES.forEach(r=>{
+    const s=$("sel-"+r.id);
+    s.innerHTML=(S.roles[r.id]?"":'<option value="">Add a color first</option>')+g.map(x=>`<option value="${esc(x.key)}">${esc(x.label)} (${x.qty})</option>`).join("");
+    s.value=S.roles[r.id]||"";
+  });
+  const sum=ROLES.reduce((a,r)=>a+P(r.id),0);
+  $("sum").textContent=S.mode==="fixed"?"Locked to 60:30:10":"No fixed ratio. Each color is measured against the nearest of 10%, 30% or 60%.";
+  $("sum").className="sum"+(sum>0?"":" bad");
+
+  /* chart */
+  const total=g.reduce((a,x)=>a+x.qty,0);
+  const cur=g.map(x=>({v:x.qty,hex:x.hex,t:x.label+": "+x.qty+" items"}));
+  const tgt=ROLES.map(r=>{const gr=g.find(x=>x.key===S.roles[r.id]);return{v:P(r.id),hex:gr?gr.hex:"#9aa0a7",t:r.label+" target: "+Math.round(P(r.id)*100/(sum||1))+"%"}});
+  $("pie").innerHTML=(S.mode==="free"?ring(cur,112,62):ring(cur,112,78)+ring(tgt,68,44))+`<text class="big" x="120" y="121" text-anchor="middle">${total}</text><text class="sm" x="120" y="136" text-anchor="middle">items</text>`;
+  const roleOf=k=>{const r=ROLES.find(r=>S.roles[r.id]===k);return r?r.label:""};
+  $("legend").innerHTML=g.length?g.map(x=>`<li><span class="sw" style="background:${x.hex}"></span><div class="gi"><b>${esc(x.label)}</b><small>${S.mode==="free"?"":(roleOf(x.key)||"Not in ratio")}</small></div><span>${x.qty} · ${Math.round(x.qty/total*100)}%</span></li>`).join(""):'<li class="empty">No colors yet.</li>';
+
+  const invQ=new Map(ga.map(x=>[x.key,x.qty]));
+  const pull=r=>{if(S.src!=="load"||!r.add||!r.g)return"";const sp=(invQ.get(r.g.key)||0)-r.g.qty;return sp>0?`<small>${Math.min(sp,r.add)} of these could come from your inventory.</small>`:""};
+  const lrow=l=>{const it=S.items.find(i=>i.id===l.id);return`<li><span class="sw" style="background:${it.hex}"></span><div class="gi"><b>${esc(it.name||it.color)}</b><small>${esc(it.color)} ${invTag(it,1)}, ${it.qty-l.qty} left in stock</small></div><div class="ctl"><div class="qty"><button type="button" data-a="lless" data-id="${it.id}" aria-label="One less in loadout">−</button><span>${l.qty}</span><button type="button" data-a="lmore" data-id="${it.id}" aria-label="One more in loadout"${l.qty>=it.qty?" disabled":""}>+</button></div><button class="x" type="button" data-a="lout" data-id="${it.id}" aria-label="Return to inventory" title="Return to inventory">×</button></div></li>`};
+  $("lclr").hidden=!S.load.length;
+  $("lsum").textContent=S.load.length?S.load.reduce((a,l)=>a+l.qty,0)+" units from "+S.load.length+(S.load.length===1?" item":" items")+" in your loadout.":"";
+  $("lload").innerHTML=S.load.length?S.load.map(lrow).join(""):'<li class="empty">Nothing in your loadout yet. Use “+ Loadout” on an inventory item to pull it in.</li>';
+  /* suggestions */
+  let h="";
+  if(S.mode==="free")h=freeHtml(g);
+  else if(c.err)h=`<p class="err">${c.err}</p>`;
+  else if(c.empty)h='<p class="sub">'+(S.src==="load"?"Pull items from your inventory into the loadout and the number to add for each color will show up here.":"Add items in your ratio colors and the number to buy for each will show up here.")+"</p>";
+  else{
+    const ratio=ROLES.map(r=>P(r.id)).join(":");
+    const adds=c.rows.filter(r=>r.add>0).map(r=>`<b>${r.add}</b> ${esc(r.g?r.g.label:r.label.toLowerCase()+" color")}`);
+    const list=adds.length>1?adds.slice(0,-1).join(", ")+" and "+adds[adds.length-1]:adds[0];
+    if(adds.length){
+      h=`<p class="head-line">Add ${list} to reach ${ratio} across ${c.N} items.</p><p class="sub">${esc(c.lead.g.label)} sets the pace: ${c.lead.have} items at a ${Math.round(c.lead.p*100/c.sum)}% share means ${c.N} in total, so the other colors scale up to match it.</p>`;
+    }else h=`<p class="head-line">You’re on ratio.</p><p class="sub">Your ${c.N} items already split ${ratio}. Add more of any color and the targets will adjust.</p>`;
+    h+="<ul>"+c.rows.map(r=>`<li><span class="sw" style="background:${r.g?r.g.hex:"var(--soft)"}"></span><div class="gi"><b>${r.label}: ${r.g?esc(r.g.label):"not set"}</b><small>${r.have} now (${Math.round(r.have/c.sumHave*100)}%) → ${r.target} at target (${Math.round(r.p*100/c.sum)}%)</small>${pull(r)}</div><div class="add${r.add?"":" zero"}">${r.add?"+"+r.add:"✓"}</div></li>`).join("")+"</ul>";
+    const ids=ROLES.map(r=>S.roles[r.id]);
+    const other=g.filter(x=>!ids.includes(x.key)).reduce((a,x)=>a+x.qty,0);
+    if(other)h+=`<p class="note">${other} items in other colors aren’t counted toward the ratio.</p>`;
+  }
+  $("sugg").innerHTML=h;
+
+  /* inventory */
+  renderInvs();
+  $("inv").textContent=sel.length?sel.length+" logged "+(sel.length===1?"item":"items")+", "+gi.reduce((a,x)=>a+x.qty,0)+" in stock, "+gi.length+(gi.length===1?" color":" colors")+(invSel==="all"&&S.invs.length>1?" across "+S.invs.length+" inventories":"")+".":"";
+  $("list").innerHTML=visible(gi).length?visible(gi).map(it=>it.hdr?`<li class="gh"><span class="sw" style="background:${it.hex}"></span><div class="gi"><b>${esc(it.color)}</b></div><span class="sub">${it.qty} in stock, ${it.pct}%</span></li>`:`<li class="${view==="color"?"in":""}"><span class="sw" style="background:${it.hex}"></span><div class="gi"><b>${esc(it.name||it.color)}</b><small>${esc(it.color)} ${invTag(it)}${LQ(it.id)?", "+LQ(it.id)+" in loadout":""}</small></div><div class="ctl"><div class="qty"><button type="button" data-a="dec" data-id="${it.id}" aria-label="One less">−</button><span>${it.qty}</span><button type="button" data-a="inc" data-id="${it.id}" aria-label="One more">+</button></div><button class="ghost ld" type="button" data-a="load" data-id="${it.id}"${it.qty>LQ(it.id)?"":" disabled"} title="Add one to your loadout">+ Loadout</button><button class="x" type="button" data-a="edit" data-id="${it.id}" aria-label="Edit item" title="Edit item">✎</button><button class="x" type="button" data-a="del" data-id="${it.id}" aria-label="Remove item">×</button></div></li>`).join(""):'<li class="empty">'+(sel.length?"No items match your search.":S.items.length?"This inventory is empty. Add an item to it above.":"Your inventory is empty. Add your first item, or load the example.")+'</li>';
+}
+
+/* events */
+$("add").onclick=()=>{
+  const hex=$("chex").value.toUpperCase();
+  const color=$("cname").value.trim()||hex;
+  const key=color.toLowerCase();
+  const ex=S.items.find(i=>i.key===key&&i.id!==editing);
+  const rec={name:$("iname").value.trim(),color:ex?ex.color:color,key,hex:ex?ex.hex:hex,qty:Math.max(1,parseInt($("iqty").value)||1),inv:$("iinv").value||S.invs[0].id};
+  const cur=editing&&S.items.find(i=>i.id===editing);
+  if(cur){Object.assign(cur,rec);endEdit()}else S.items.push({id:uid(),...rec});
+  $("iname").value="";$("iqty").value=1;$("iname").focus();render();
+};
+function markSaved(){const k=$("cname").value.trim().toLowerCase();document.querySelectorAll("#saved .chip").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.k===k)))}
+$("cname").addEventListener("input",e=>{const x=groups().find(g=>g.key===e.target.value.trim().toLowerCase());if(x)$("chex").value=x.hex.toLowerCase();markSaved()});
+$("saved").addEventListener("click",e=>{
+  const b=e.target.closest(".chip");if(!b)return;
+  const x=groups().find(g=>g.key===b.dataset.k);if(!x)return;
+  $("cname").value=x.label;$("chex").value=x.hex.toLowerCase();markSaved();$("iqty").focus();
+});
+$("list").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  const i=S.items.findIndex(x=>x.id===b.dataset.id);if(i<0)return;
+  if(b.dataset.a==="inc")S.items[i].qty++;
+  else if(b.dataset.a==="dec"){if(--S.items[i].qty<1)S.items.splice(i,1)}
+  else if(b.dataset.a==="load")loadAdd(S.items[i].id,1);
+  else if(b.dataset.a==="edit"){startEdit(S.items[i]);return}
+  else S.items.splice(i,1);
+  render();
+});
+ROLES.forEach(r=>{
+  $("p-"+r.id).addEventListener("input",e=>{S.pct[r.id]=Math.min(100,Math.max(0,Math.round(+e.target.value||0)));render()});
+  $("sel-"+r.id).addEventListener("change",e=>{
+    const k=e.target.value||null;if(!k)return;
+    const prev=S.roles[r.id];
+    ROLES.forEach(o=>{if(o.id!==r.id&&S.roles[o.id]===k)S.roles[o.id]=prev});
+    S.roles[r.id]=k;render();
+  });
+});
+document.querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{
+  b.dataset.p.split(",").forEach((v,i)=>{S.pct[ROLES[i].id]=+v;$("p-"+ROLES[i].id).value=v});render();
+});
+$("ex").onclick=()=>{
+  const mk=(name,color,hex,qty,inv="main")=>({id:uid(),name,color,key:color.toLowerCase(),hex,qty,inv});
+  S.invs=[{id:"main",name:"Main wardrobe",hex:PAL[0]},{id:"spare",name:"Storage",hex:PAL[1]}];invSel="all";
+  S.items=[mk("Trousers","Black","#161616",7),mk("Jackets","Black","#161616",5),mk("Shirts","White","#FFFFFF",3),mk("Spare tees","White","#FFFFFF",4,"spare"),mk("Belt","Brown","#7B4A2B",1),mk("Scarf","Brown","#7B4A2B",2,"spare")];
+  S.load=[[0,4],[1,2],[2,1],[3,1],[4,1]].map(([n,q])=>({id:S.items[n].id,qty:q}));S.src="load";
+  S.roles={dom:null,sec:null,acc:null};S.pct={dom:60,sec:30,acc:10};
+  ROLES.forEach(r=>$("p-"+r.id).value=S.pct[r.id]);render();
+};
+document.querySelectorAll("[data-m]").forEach(b=>b.onclick=()=>{S.mode=b.dataset.m;syncInputs();render()});
+syncInputs();
+function toast(t,undo){
+  const m=$("msg");m.textContent=t;
+  if(undo){const b=document.createElement("button");b.type="button";b.className="ghost";b.style.marginLeft="8px";b.textContent="Undo";b.onclick=()=>{undo();m.textContent=""};m.appendChild(b)}
+}
+$("exp").onclick=async()=>{
+  const data=JSON.stringify({app:"color-ratio-tracker",version:1,exportedAt:new Date().toISOString(),mode:S.mode,roles:S.roles,inventories:S.invs.map(({name,hex})=>({name,hex})),items:S.items.map(i=>({name:i.name,color:i.color,hex:i.hex,qty:i.qty,inventory:Math.max(0,S.invs.findIndex(v=>v.id===i.inv))})),loadout:S.load.map(l=>({item:S.items.findIndex(i=>i.id===l.id),qty:l.qty})).filter(l=>l.item>=0)},null,2);
+  const filename="color-ratio-"+new Date().toISOString().slice(0,10)+".json";
+  try{
+    const d=window.claude&&claude.use?await claude.use("downloads"):null;
+    if(d){await d.save({filename,data});toast("Saved "+filename+".");return}
+    if(window.claude){toast("Saving files isn’t available in this view.");return}
+    const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([data],{type:"application/json"}));a.download=filename;a.click();
+    setTimeout(()=>URL.revokeObjectURL(a.href),1000);toast("Exported "+filename+".");
+  }catch(e){toast(e&&e.code==="declined"?"Export cancelled.":"Couldn’t save the file. Try again.")}
+};
+$("imp").onclick=()=>$("file").click();
+$("file").onchange=e=>{
+  const f=e.target.files[0];e.target.value="";if(!f)return;
+  const r=new FileReader();
+  r.onerror=()=>toast("Couldn’t read that file.");
+  r.onload=()=>{
+    try{
+      const o=JSON.parse(r.result),arr=Array.isArray(o)?o:o.items;
+      if(!Array.isArray(arr))throw 0;
+      let invs=(Array.isArray(o.inventories)?o.inventories:[]).map(v=>v&&String(v.name||"").trim()?{id:uid(),name:String(v.name).trim().slice(0,40),hex:/^#[0-9a-f]{6}$/i.test(v.hex)?v.hex.toUpperCase():PAL[0]}:null).filter(Boolean);
+      if(!invs.length)invs=[{id:"main",name:"Main",hex:PAL[0]}];
+      const items=arr.map((i,n)=>{
+        if(!i)return null;
+        const hex=/^#[0-9a-f]{6}$/i.test(i.hex)?i.hex.toUpperCase():null;
+        const qty=Math.floor(+i.qty),color=String(i.color||hex||"").trim();
+        if(!hex||!color||!(qty>=1))return null;
+        return{id:uid(),name:String(i.name||"").trim(),color,key:color.toLowerCase(),hex,qty:Math.min(qty,100000),inv:(invs[Math.floor(+i.inventory)]||invs[0]).id,_n:n};
+      }).filter(Boolean);
+      if(!items.length)throw 0;
+      const prev=JSON.stringify(S),rk=x=>typeof x==="string"?x:null;
+      S.items=items;S.invs=invs;invSel="all";
+      S.load=Array.isArray(o.loadout)?o.loadout.map(l=>{const it=items.find(x=>x._n===l.item);return it?{id:it.id,qty:Math.floor(+l.qty)||0}:null}).filter(Boolean):[];
+      items.forEach(x=>delete x._n);
+      if(!Array.isArray(o)){
+        if(o.mode==="free"||o.mode==="fixed")S.mode=o.mode;
+        const ro=o.roles||{};S.roles={dom:rk(ro.dom),sec:rk(ro.sec),acc:rk(ro.acc)};
+      }else S.roles={dom:null,sec:null,acc:null};
+      syncInputs();render();
+      const skipped=arr.length-items.length;
+      toast("Imported "+items.length+" items, replacing the previous ones"+(skipped?" (skipped "+skipped+" invalid)":"")+".",()=>{S=JSON.parse(prev);syncInputs();render()});
+    }catch(err){toast("That file isn’t a valid export. It needs to be JSON with a list of items, each with a color, a hex shade and a quantity.")}
+  };
+  r.readAsText(f);
+};
+$("q").addEventListener("input",e=>{query=e.target.value;render()});
+document.querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>{view=b.dataset.v;syncView();render()});
+$("cancel").onclick=endEdit;
+document.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{S.src=b.dataset.s;render()});
+$("lload").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  const l=S.load.find(x=>x.id===b.dataset.id),it=S.items.find(x=>x.id===b.dataset.id);if(!l||!it)return;
+  if(b.dataset.a==="lmore")l.qty=Math.min(it.qty,l.qty+1);
+  else if(b.dataset.a==="lless")l.qty--;
+  else l.qty=0;
+  render();
+});
+syncView();
+document.querySelectorAll("[data-lv]").forEach(b=>b.onclick=()=>setView(b.dataset.lv));
+function fixInvs(){
+  S.invs=(Array.isArray(S.invs)?S.invs:[]).filter(v=>v&&v.id&&typeof v.name==="string");
+  if(!S.invs.length)S.invs=[{id:"main",name:"Main",hex:PAL[0]}];
+  const ok=new Set(S.invs.map(v=>v.id));
+  S.items.forEach(i=>{if(!ok.has(i.inv))i.inv=S.invs[0].id});
+  if(invSel!=="all"&&!ok.has(invSel))invSel="all";
+}
+function invTag(it,force){
+  if(S.invs.length<2||(!force&&invSel!=="all"))return"";
+  const v=S.invs.find(x=>x.id===it.inv);
+  return v?`<span class="itag"><i style="background:${v.hex}"></i>${esc(v.name)}</span>`:"";
+}
+function renderInvs(){
+  const cnt=id=>S.items.filter(i=>i.inv===id).reduce((a,i)=>a+i.qty,0);
+  const pv=wantInv||$("iinv").value;wantInv=null;
+  $("iinv").innerHTML=S.invs.map(v=>`<option value="${esc(v.id)}">${esc(v.name)}</option>`).join("");
+  $("iinv").value=S.invs.some(v=>v.id===pv)?pv:S.invs[0].id;
+  $("invtabs").innerHTML=`<button type="button" class="chip tab" data-t="all" aria-pressed="${invSel==="all"}">All <span class="cnt">${S.items.reduce((a,i)=>a+i.qty,0)}</span></button>`
+    +S.invs.map(v=>`<button type="button" class="chip tab" data-t="${esc(v.id)}" aria-pressed="${invSel===v.id}"><span class="sw" style="background:${v.hex}"></span>${esc(v.name)} <span class="cnt">${cnt(v.id)}</span></button>`).join("")
+    +`<button type="button" class="ghost" data-t="new">+ New</button>`+(invSel!=="all"?`<button type="button" class="ghost" data-t="edit">Edit</button>`:"");
+}
+function openIE(id){
+  invEdit=id;const v=S.invs.find(x=>x.id===id);
+  $("ivn").value=v?v.name:"";$("ivc").value=(v?v.hex:PAL[S.invs.length%PAL.length]).toLowerCase();
+  $("ivs").textContent=v?"Save changes":"Add inventory";
+  dArm=false;delLabels(v);
+  $("invedit").hidden=false;$("ivn").focus();
+}
+function closeIE(){invEdit=null;dArm=false;$("invedit").hidden=true}
+$("invtabs").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;const t=b.dataset.t;
+  if(t==="new")openIE("new");
+  else if(t==="edit")openIE(invSel);
+  else{invSel=t;closeIE();if(t!=="all")wantInv=t;render()}
+});
+$("ivx").onclick=closeIE;
+$("ivs").onclick=()=>{
+  const name=$("ivn").value.trim().slice(0,40)||("Inventory "+(S.invs.length+1)),hex=$("ivc").value.toUpperCase();
+  if(invEdit==="new"){const v={id:uid(),name,hex};S.invs.push(v);invSel=v.id;wantInv=v.id}
+  else{const v=S.invs.find(x=>x.id===invEdit);if(v){v.name=name;v.hex=hex}}
+  closeIE();render();
+};
+function delLabels(v){
+  const n=v?S.items.filter(i=>i.inv===v.id).length:0,last=S.invs.length<2;
+  $("ivd").hidden=!v||last||!n;$("ivd").textContent="Delete, keep items";
+  $("ivda").hidden=!v;$("ivda").textContent=last?(n?"Delete with items, start fresh":"Delete, start fresh"):(n?"Delete with items":"Delete");
+}
+$("ivd").onclick=()=>{
+  const v=S.invs.find(x=>x.id===invEdit);if(!v||S.invs.length<2)return;
+  const to=S.invs.find(x=>x.id!==v.id);
+  if(dArm!=="move"){dArm="move";delLabels(v);$("ivd").textContent="Items move to \u201c"+to.name+"\u201d. Tap again";return}
+  S.items.forEach(i=>{if(i.inv===v.id)i.inv=to.id});
+  S.invs=S.invs.filter(x=>x.id!==v.id);invSel="all";closeIE();render();
+};
+$("ivda").onclick=()=>{
+  const v=S.invs.find(x=>x.id===invEdit);if(!v)return;
+  const n=S.items.filter(i=>i.inv===v.id).length;
+  if(dArm!=="all"){dArm="all";delLabels(v);$("ivda").textContent=n?"Remove "+n+(n===1?" item":" items")+" too. Tap again":"Tap again to delete";return}
+  S.items=S.items.filter(i=>i.inv!==v.id);S.invs=S.invs.filter(x=>x.id!==v.id);invSel="all";closeIE();render();
+};
+let lArm=false,lt;
+$("lclr").onclick=()=>{
+  const n=S.load.reduce((a,l)=>a+l.qty,0);
+  if(!lArm){lArm=true;$("lclr").textContent="Return all "+n+"? Tap again";lt=setTimeout(()=>{lArm=false;$("lclr").textContent="Return all"},3000);return}
+  clearTimeout(lt);lArm=false;$("lclr").textContent="Return all";S.load=[];render();
+};
+
+let armed=false,t;
+$("clr").onclick=()=>{
+  if(!armed){armed=true;$("clr").textContent="Click again to clear";t=setTimeout(()=>{armed=false;$("clr").textContent="Clear all"},3000);return}
+  clearTimeout(t);armed=false;$("clr").textContent="Clear all";
+  S.items=[];S.roles={dom:null,sec:null,acc:null};render();
+};
+render();
+</script>
+</body>
+</html>
